@@ -21,16 +21,22 @@ def get_ciudades2():
         apellido = row[1]
         usuario = row[2]
         ciudad = row[3]
-        response = requests.get(f"https://geocode.xyz/{ciudad}?json=1&auth=247521350360750201282x49376")
-        data = response.json()
-        if response.status_code == 200:
-            cursor.execute("INSERT INTO Ciudades2 (nombre, apellido, usuario, ciudad, longitud, latitud) VALUES (?, ?, ?, ?, ?, ?)",
-                           (nombre, apellido, usuario, ciudad, data['longt'], data['latt']))
-            cnxn.commit()
 
+        # Verificar si el usuario ya existe en la base de datos
+        cursor.execute("SELECT usuario FROM Ciudades2 WHERE usuario = ?", (usuario,))
+        user_exists = cursor.fetchone()
+
+        # Si el usuario no existe, insertar los datos
+        if not user_exists:
+            response = requests.get(f"https://geocode.xyz/{ciudad}?json=1&auth=247521350360750201282x49376")
+            data = response.json()
+            if response.status_code == 200:
+                cursor.execute("INSERT INTO Ciudades2 (nombre, apellido, usuario, ciudad, longitud, latitud) VALUES (?, ?, ?, ?, ?, ?)", 
+                               (nombre, apellido, usuario, ciudad, data['longt'], data['latt']))
+
+    # Mostrar todos los datos de la base de datos
     cursor.execute("SELECT nombre, apellido, usuario, ciudad, longitud, latitud FROM Ciudades2")
     rows = cursor.fetchall()
-
     ciudades = [{"nombre": row[0], "apellido": row[1], "usuario": row[2], "ciudad": row[3], "longitud": row[4], "latitud": row[5]} for row in rows]
     return jsonify(ciudades)
 
@@ -48,6 +54,9 @@ def get_clientes_por_apellido(apellido):
     cursor = cnxn.cursor()
     cursor.execute("SELECT nombre, usuario, ciudad, longitud, latitud FROM Ciudades2 WHERE apellido = ?", (apellido,))
     rows = cursor.fetchall()
+
+    if not rows:
+        return jsonify({"error": "No se encontraron clientes con el apellido proporcionado"}), 404
 
     clientes = [{"nombre": row[0], "usuario": row[1], "ciudad": row[2], "longitud": row[3], "latitud": row[4]} for row in rows]
     return jsonify(clientes)
